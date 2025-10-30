@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1e40af">
+    <title>Gestión Documental Multi-Archivo</title>
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiR2VzdGnDs24gRG9jdW1lbnRhbCBJbnRlbGlnZW50ZSIsInNob3J0X25hbWUiOiJHZXN0aW9uIERvYyIsInN0YXJ0X3VybCI6Ii8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIiwidGhlbWVfY29sb3IiOiIjMWU0MGFmIn0=">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1e40af;
+            --primary-dark: #1e3a8a;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-light: #f8fafc;
+            --text-dark: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-title h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(30, 64, 175, 0.3);
+        }
+
+        .btn-success {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            height: fit-content;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .files-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .file-item {
+            padding: 12px;
+            background: var(--bg-light);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .file-item:hover {
+            background: #e0e7ff;
+            transform: translateX(3px);
+        }
+
+        .file-item.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary-dark);
+        }
+
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .file-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+
+        .file-item.active .icon-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .file-info {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .sheet-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .sheet-item {
+            padding: 10px;
+            background: var(--bg-light);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .sheet-item:hover {
+            background: #e0e7ff;
+            transform: translateX(3px);
+        }
+
+        .sheet-item.active {
+            background: var(--secondary);
+            color: white;
+            border-color: #059669;
+        }
+
+        .sheet-badge {
+            background: rgba(0,0,0,0.1);
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .content-area {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .upload-zone {
+            border: 3px dashed var(--border);
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--bg-light);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            background: #e0e7ff;
+            border-color: var(--primary);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .search-section {
+            background: var(--bg-light);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .search-options {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .advanced-filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-label {
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+
+        .filter-select {
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .analytics-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .analytics-card h4 {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .analytics-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .analytics-detail {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .data-table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 0.9rem;
+        }
+
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .data-table tr:hover {
+            background: var(--bg-light);
+        }
+
+        .file-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .highlight {
+            background: #fef08a;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .card-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .data-card {
+            background: var(--bg-light);
+            padding: 18px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s;
+        }
+
+        .data-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .data-card-field {
+            margin-bottom: 10px;
+        }
+
+        .data-card-label {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.8rem;
+            margin-bottom: 3px;
+        }
+
+        .data-card-value {
+            color: var(--text-dark);
+            font-size: 0.9rem;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .view-btn {
+            padding: 8px 15px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .view-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .intelligence-panel {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .intelligence-panel h3 {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+        }
+
+        .insights-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .insight-item {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .pagination button {
+            padding: 8px 15px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .export-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .export-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            padding: 10px;
+            margin-top: 5px;
+            z-index: 100;
+            min-width: 150px;
+        }
+
+        .export-option {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .export-option:hover {
+            background: var(--bg-light);
+        }
+
+        .quick-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .quick-stat {
+            padding: 12px;
+            background: var(--bg-light);
+            border-radius: 8px;
+        }
+
+        .quick-stat-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+
+        .quick-stat-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                max-height: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card-view {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <div class="header-title">
+                <span style="font-size: 2.5rem;">📚</span>
+                <div>
+                    <h1>Gestión Documental Multi-Archivo</h1>
+                    <p style="color: #64748b; font-size: 0.9rem;">Busca en múltiples archivos Excel simultáneamente</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    📤 Agregar Archivos
+                </button>
+                <div class="export-menu">
+                    <button class="btn btn-success" onclick="toggleExportMenu()">
+                        💾 Exportar
+                    </button>
+                    <div id="exportDropdown" class="export-dropdown hidden">
+                        <div class="export-option" onclick="exportData('excel')">📊 Excel (.xlsx)</div>
+                        <div class="export-option" onclick="exportData('csv')">📄 CSV</div>
+                        <div class="export-option" onclick="exportData('json')">🔧 JSON</div>
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="clearAllData()">
+                    🗑️ Limpiar Todo
+                </button>
+            </div>
+        </div>
+
+        <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
+
+        <div id="uploadView">
+            <div class="content-area">
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📁</div>
+                    <h2>Arrastra múltiples archivos Excel aquí</h2>
+                    <p style="color: #64748b; margin: 15px 0;">Puedes cargar varios archivos y buscar en todos simultáneamente</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        Seleccionar archivos
+                    </button>
+                    <p style="margin-top: 20px; color: #94a3b8; font-size: 0.9rem;">
+                        Formatos soportados: .xlsx, .xls | Selección múltiple habilitada
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div id="dataView" class="hidden">
+            <div class="main-grid">
+                <div class="sidebar">
+                    <h3>
+                        📂 Archivos Cargados
+                        <span style="font-size: 0.8rem; font-weight: normal;" id="fileCount">(0)</span>
+                    </h3>
+                    <div id="filesList" class="files-list"></div>
+
+                    <div class="quick-stats">
+                        <div class="quick-stat">
+                            <div class="quick-stat-label">Total Archivos</div>
+                            <div class="quick-stat-value" id="totalFiles">0</div>
+                        </div>
+                        <div class="quick-stat">
+                            <div class="quick-stat-label">Total Registros</div>
+                            <div class="quick-stat-value" id="totalRecords">0</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 25px;" id="sheetsSection" class="hidden">
+                        <h3>📋 Pestañas</h3>
+                        <div id="sheetList" class="sheet-list"></div>
+                    </div>
+                </div>
+
+                <div class="content-area">
+                    <div id="intelligencePanel" class="intelligence-panel">
+                        <h3>🤖 Análisis Inteligente</h3>
+                        <div id="insightsList" class="insights-list"></div>
+                    </div>
+
+                    <div class="search-section">
+                        <div class="search-box">
+                            <input 
+                                type="text" 
+                                class="search-input" 
+                                id="searchInput" 
+                                placeholder="🔍 Buscar en todos los archivos y pestañas..."
+                            >
+                            <button class="btn btn-primary" onclick="performSearch()">Buscar</button>
+                        </div>
+
+                        <div class="search-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="searchAllFiles" checked onchange="performSearch()">
+                                Buscar en todos los archivos
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="caseSensitive" onchange="performSearch()">
+                                Sensible a mayúsculas
+                            </label>
+                        </div>
+
+                        <div id="advancedFilters" class="advanced-filters"></div>
+                    </div>
+
+                    <div class="analytics-grid" id="analyticsGrid"></div>
+
+                    <div class="view-toggle">
+                        <button class="view-btn active" onclick="switchView('table')">📊 Tabla</button>
+                        <button class="view-btn" onclick="switchView('cards')">🗂️ Tarjetas</button>
+                    </div>
+
+                    <div id="tableView">
+                        <div class="data-table-container">
+                            <table class="data-table" id="dataTable">
+                                <thead id="tableHead"></thead>
+                                <tbody id="tableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="cardsView" class="card-view hidden"></div>
+
+                    <div class="pagination" id="pagination"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingView" class="loading hidden">
+            <div class="spinner"></div>
+            <p style="color: white; font-size: 1.2rem;">Analizando archivos...</p>
+        </div>
+    </div>
+
+    <script>
+        let allFilesData = {};
+        let currentFileId = null;
+        let currentSheet = null;
+        let filteredData = [];
+        let currentView = 'table';
+        let currentPage = 1;
+        const recordsPerPage = 50;
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZSA9PiBzZWxmLnNraXBXYWl0aW5nKCkpOw==').catch(() => {});
+        }
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 0) loadMultipleFiles(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) loadMultipleFiles(files);
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+
+        function loadMultipleFiles(files) {
+            document.getElementById('uploadView').classList.add('hidden');
+            document.getElementById('loadingView').classList.remove('hidden');
+
+            let filesProcessed = 0;
+
+            files.forEach(file => {
+                const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+
+                        const sheetsData = {};
+                        workbook.SheetNames.forEach(sheetName => {
+                            const sheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                            sheetsData[sheetName] = {
+                                data: jsonData,
+                                headers: jsonData.length > 0 ? Object.keys(jsonData[0]) : []
+                            };
+                        });
+
+                        allFilesData[fileId] = {
+                            fileName: file.name,
+                            sheets: sheetsData,
+                            uploadDate: new Date().toLocaleString()
+                        };
+
+                        filesProcessed++;
+                        if (filesProcessed === files.length) {
+                            initializeApp();
+                        }
+                    } catch (error) {
+                        console.error('Error al cargar archivo:', error);
+                        filesProcessed++;
+                        if (filesProcessed === files.length) {
+                            if (Object.keys(allFilesData).length > 0) {
+                                initializeApp();
+                            } else {
+                                alert('Error al cargar los archivos');
+                                document.getElementById('uploadView').classList.remove('hidden');
+                                document.getElementById('loadingView').classList.add('hidden');
+                            }
+                        }
+                    }
+                };
+
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function initializeApp() {
+            document.getElementById('loadingView').classList.add('hidden');
+            document.getElementById('dataView').classList.remove('hidden');
+
+            renderFilesList();
+            updateGlobalStats();
+            generateIntelligentInsights();
+
+            const firstFileId = Object.keys(allFilesData)[0];
+            if (firstFileId) {
+                selectFile(firstFileId);
+            }
+        }
+
+        function renderFilesList() {
+            const filesList = document.getElementById('filesList');
+            const fileIds = Object.keys(allFilesData);
+
+            document.getElementById('fileCount').textContent = `(${fileIds.length})`;
+
+            filesList.innerHTML = fileIds.map(fileId => {
+                const file = allFilesData[fileId];
+                const totalRecords = Object.values(file.sheets).reduce((sum, sheet) => sum + sheet.data.length, 0);
+                const sheetCount = Object.keys(file.sheets).length;
+
+                return `
+                    <div class="file-item" data-file-id="${fileId}" onclick="selectFile('${fileId}')">
+                        <div class="file-header">
+                            <div class="file-name" title="${file.fileName}">
+                                📄 ${file.fileName}
+                            </div>
+                            <div class="file-actions">
+                                <button class="icon-btn" onclick="event.stopPropagation(); removeFile('${fileId}')" title="Eliminar">
+                                    ❌
+                                </button>
+                            </div>
+                        </div>
+                        <div class="file-info">
+                            ${sheetCount} pestañas | ${totalRecords} registros
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectFile(fileId) {
+            currentFileId = fileId;
+            currentPage = 1;
+
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            const selectedItem = document.querySelector(`[data-file-id="${fileId}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+
+            renderSheetsList();
+            document.getElementById('sheetsSection').classList.remove('hidden');
+
+            const firstSheet = Object.keys(allFilesData[fileId].sheets)[0];
+            if (firstSheet) {
+                selectSheet(firstSheet);
+            }
+        }
+
+        function renderSheetsList() {
+            if (!currentFileId) return;
+
+            const sheetList = document.getElementById('sheetList');
+            const sheets = allFilesData[currentFileId].sheets;
+
+            sheetList.innerHTML = Object.keys(sheets).map(sheetName => {
+                const count = sheets[sheetName].data.length;
+                return `
+                    <div class="sheet-item" onclick="selectSheet('${sheetName}')">
+                        <span>📋 ${sheetName}</span>
+                        <span class="sheet-badge">${count}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectSheet(sheetName) {
+            currentSheet = sheetName;
+            currentPage = 1;
+
+            document.querySelectorAll('.sheet-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.sheet-item').classList.add('active');
+
+            filteredData = allFilesData[currentFileId].sheets[sheetName].data;
+            createAdvancedFilters();
+            updateAnalytics();
+            renderData();
+        }
+
+        function removeFile(fileId) {
+            if (confirm('¿Estás seguro de eliminar este archivo?')) {
+                delete allFilesData[fileId];
+
+                if (Object.keys(allFilesData).length === 0) {
+                    document.getElementById('dataView').classList.add('hidden');
+                    document.getElementById('uploadView').classList.remove('hidden');
+                    currentFileId = null;
+                    currentSheet = null;
+                    return;
+                }
+
+                renderFilesList();
+                updateGlobalStats();
+                generateIntelligentInsights();
+
+                if (currentFileId === fileId) {
+                    const firstFileId = Object.keys(allFilesData)[0];
+                    if (firstFileId) {
+                        selectFile(firstFileId);
+                    }
+                }
+            }
+        }
+
+        function createAdvancedFilters() {
+            if (!currentFileId || !currentSheet) return;
+
+            const filtersContainer = document.getElementById('advancedFilters');
+            const headers = allFilesData[currentFileId].sheets[currentSheet].headers;
+
+            filtersContainer.innerHTML = headers.slice(0, 5).map(header => {
+                const uniqueValues = [...new Set(allFilesData[currentFileId].sheets[currentSheet].data.map(row => row[header]))].filter(v => v);
+
+                if (uniqueValues.length < 50 && uniqueValues.length > 0) {
+                    return `
+                        <div class="filter-group">
+                            <label class="filter-label">${header}</label>
+                            <select class="filter-select" data-column="${header}" onchange="performSearch()">
+                                <option value="">Todos</option>
+                                ${uniqueValues.map(val => `<option value="${String(val).replace(/"/g, '&quot;')}">${val}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+                }
+                return '';
+            }).join('');
+        }
+
+        function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value;
+            const searchAllFiles = document.getElementById('searchAllFiles').checked;
+            const caseSensitive = document.getElementById('caseSensitive').checked;
+            const filters = Array.from(document.querySelectorAll('.filter-select'));
+
+            const searchTermProcessed = caseSensitive ? searchTerm : searchTerm.toLowerCase();
+
+            if (searchAllFiles) {
+                filteredData = [];
+                Object.keys(allFilesData).forEach(fileId => {
+                    Object.keys(allFilesData[fileId].sheets).forEach(sheetName => {
+                        const sheetData = allFilesData[fileId].sheets[sheetName].data;
+                        const filtered = sheetData.filter(row => {
+                            const matchesSearch = !searchTerm || Object.values(row).some(val => {
+                                const valStr = String(val);
+                                return caseSensitive ? valStr.includes(searchTermProcessed) : valStr.toLowerCase().includes(searchTermProcessed);
+                            });
+                            return matchesSearch;
+                        }).map(row => ({
+                            ...row,
+                            __file: allFilesData[fileId].fileName,
+                            __sheet: sheetName
+                        }));
+                        filteredData = filteredData.concat(filtered);
+                    });
+                });
+            } else {
+                if (!currentFileId || !currentSheet) return;
+
+                filteredData = allFilesData[currentFileId].sheets[currentSheet].data.filter(row => {
+                    const matchesSearch = !searchTerm || Object.values(row).some(val => {
+                        const valStr = String(val);
+                        return caseSensitive ? valStr.includes(searchTermProcessed) : valStr.toLowerCase().includes(searchTermProcessed);
+                    });
+
+                    const matchesFilters = filters.every(filter => {
+                        const value = filter.value;
+                        const column = filter.dataset.column;
+                        return !value || String(row[column]) === value;
+                    });
+
+                    return matchesSearch && matchesFilters;
+                });
+            }
+
+            currentPage = 1;
+            updateAnalytics();
+            renderData();
+        }
+
+        function updateAnalytics() {
+            const analyticsGrid = document.getElementById('analyticsGrid');
+            const analytics = [];
+
+            const searchAllFiles = document.getElementById('searchAllFiles').checked;
+
+            if (searchAllFiles) {
+                const totalRecords = Object.values(allFilesData).reduce((sum, file) => 
+                    sum + Object.values(file.sheets).reduce((s, sheet) => s + sheet.data.length, 0), 0
+                );
+
+                analytics.push({
+                    title: 'Resultados',
+                    value: filteredData.length,
+                    detail: `de ${totalRecords} totales`,
+                    gradient: 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)'
+                });
+
+                analytics.push({
+                    title: 'Archivos',
+                    value: Object.keys(allFilesData).length,
+                    detail: 'cargados',
+                    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                });
+            } else {
+                if (currentFileId && currentSheet) {
+                    const headers = allFilesData[currentFileId].sheets[currentSheet].headers;
+                    const totalInSheet = allFilesData[currentFileId].sheets[currentSheet].data.length;
+
+                    analytics.push({
+                        title: 'Resultados',
+                        value: filteredData.length,
+                        detail: `de ${totalInSheet} en pestaña`,
+                        gradient: 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)'
+                    });
+
+                    analytics.push({
+                        title: 'Columnas',
+                        value: headers.length,
+                        detail: 'campos disponibles',
+                        gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                    });
+
+                    if (headers.length > 0 && filteredData.length > 0) {
+                        const firstNumericColumn = headers.find(h => !isNaN(parseFloat(filteredData[0]?.[h])));
+
+                        if (firstNumericColumn) {
+                            const sum = filteredData.reduce((acc, row) => acc + (parseFloat(row[firstNumericColumn]) || 0), 0);
+                            analytics.push({
+                                title: firstNumericColumn,
+                                value: sum.toFixed(2),
+                                detail: 'suma total',
+                                gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                            });
+                        }
+                    }
+                }
+            }
+
+            analyticsGrid.innerHTML = analytics.map(stat => `
+                <div class="analytics-card" style="background: ${stat.gradient}">
+                    <h4>${stat.title}</h4>
+                    <div class="analytics-value">${stat.value}</div>
+                    <div class="analytics-detail">${stat.detail}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderData() {
+            if (currentView === 'table') {
+                renderTableView();
+            } else {
+                renderCardsView();
+            }
+            renderPagination();
+        }
+
+        function renderTableView() {
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+            const searchTerm = document.getElementById('searchInput').value;
+            const caseSensitive = document.getElementById('caseSensitive').checked;
+            const searchAllFiles = document.getElementById('searchAllFiles').checked;
+
+            if (filteredData.length === 0) {
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '<tr><td style="text-align:center; padding:40px;">No se encontraron resultados</td></tr>';
+                return;
+            }
+
+            const headers = Object.keys(filteredData[0]).filter(h => !h.startsWith('__'));
+            const extraHeaders = searchAllFiles ? ['__file', '__sheet'] : [];
+            const allHeaders = [...extraHeaders, ...headers];
+
+            tableHead.innerHTML = `<tr>${allHeaders.map(h => `<th>${h.replace('__', '').charAt(0).toUpperCase() + h.replace('__', '').slice(1)}</th>`).join('')}</tr>`;
+
+            const start = (currentPage - 1) * recordsPerPage;
+            const end = start + recordsPerPage;
+            const pageData = filteredData.slice(start, end);
+
+            tableBody.innerHTML = pageData.map(row => {
+                const cells = allHeaders.map(header => {
+                    let value = String(row[header] || '');
+                    if (searchTerm && value && !header.startsWith('__')) {
+                        const searchRegex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\            sheetList.innerHTML = Object.keys(sheets).map(sheetName => {
+                const count = sheets[sheetName].data.')})`, caseSensitive ? 'g' : 'gi');
+                        value = value.replace(searchRegex, '<span class="highlight">$1</span>');
+                    }
+                    if (header === '__file') {
+                        value = `<span class="file-badge" style="background:#dbeafe; color:#1e40af;">${value}</span>`;
+                    }
+                    if (header === '__sheet') {
+                        value = `<span class="file-badge" style="background:#d1fae5; color:#059669;">${value}</span>`;
+                    }
+                    return `<td>${value}</td>`;
+                }).join('');
+                return `<tr>${cells}</tr>`;
+            }).join('');
+        }
+
+        function renderCardsView() {
+            const cardsView = document.getElementById('cardsView');
+            const searchTerm = document.getElementById('searchInput').value;
+            const caseSensitive = document.getElementById('caseSensitive').checked;
+            const searchAllFiles = document.getElementById('searchAllFiles').checked;
+
+            if (filteredData.length === 0) {
+                cardsView.innerHTML = '<div style="text-align:center; padding:40px; grid-column: 1/-1;">No se encontraron resultados</div>';
+                return;
+            }
+
+            const start = (currentPage - 1) * recordsPerPage;
+            const end = start + recordsPerPage;
+            const pageData = filteredData.slice(start, end);
+
+            cardsView.innerHTML = pageData.map(row => {
+                const headers = Object.keys(row).filter(h => !h.startsWith('__'));
+                const fields = headers.map(header => {
+                    let value = String(row[header] || '');
+                    if (searchTerm && value) {
+                        const searchRegex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\            sheetList.innerHTML = Object.keys(sheets).map(sheetName => {
+                const count = sheets[sheetName].data.')})`, caseSensitive ? 'g' : 'gi');
+                        value = value.replace(searchRegex, '<span class="highlight">$1</span>');
+                    }
+                    return `
+                        <div class="data-card-field">
+                            <div class="data-card-label">${header}</div>
+                            <div class="data-card-value">${value}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                let cardHeader = '';
+                if (searchAllFiles && row.__file) {
+                    cardHeader = `
+                        <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #e2e8f0;">
+                            <span class="file-badge" style="background:#dbeafe; color:#1e40af;">${row.__file}</span>
+                            <span class="file-badge" style="background:#d1fae5; color:#059669;">${row.__sheet}</span>
+                        </div>
+                    `;
+                }
+
+                return `<div class="data-card">${cardHeader}${fields}</div>`;
+            }).join('');
+        }
+
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            pagination.innerHTML = `
+                <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    ← Anterior
+                </button>
+                <span style="padding: 0 15px;">
+                    Página ${currentPage} de ${totalPages} (${filteredData.length} resultados)
+                </span>
+                <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                    Siguiente →
+                </button>
+            `;
+        }
+
+        function changePage(page) {
+            const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                renderData();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (view === 'table') {
+                document.getElementById('tableView').classList.remove('hidden');
+                document.getElementById('cardsView').classList.add('hidden');
+            } else {
+                document.getElementById('tableView').classList.add('hidden');
+                document.getElementById('cardsView').classList.remove('hidden');
+            }
+
+            renderData();
+        }
+
+        function generateIntelligentInsights() {
+            const insightsList = document.getElementById('insightsList');
+            const insights = [];
+
+            const totalFiles = Object.keys(allFilesData).length;
+            const totalRecords = Object.values(allFilesData).reduce((sum, file) => 
+                sum + Object.values(file.sheets).reduce((s, sheet) => s + sheet.data.length, 0), 0
+            );
+
+            insights.push(`📊 Se cargaron ${totalFiles} archivo(s) con ${totalRecords} registros totales`);
+
+            let totalSheets = 0;
+            Object.values(allFilesData).forEach(file => {
+                totalSheets += Object.keys(file.sheets).length;
+            });
+
+            insights.push(`📋 Total de ${totalSheets} pestañas en todos los archivos`);
+
+            const largestFile = Object.entries(allFilesData).sort((a, b) => {
+                const aTotal = Object.values(a[1].sheets).reduce((s, sheet) => s + sheet.data.length, 0);
+                const bTotal = Object.values(b[1].sheets).reduce((s, sheet) => s + sheet.data.length, 0);
+                return bTotal - aTotal;
+            })[0];
+
+            if (largestFile) {
+                const largestFileRecords = Object.values(largestFile[1].sheets).reduce((s, sheet) => s + sheet.data.length, 0);
+                insights.push(`📈 El archivo más grande es "${largestFile[1].fileName}" con ${largestFileRecords} registros`);
+            }
+
+            let totalNumericColumns = 0;
+            Object.values(allFilesData).forEach(file => {
+                Object.values(file.sheets).forEach(sheet => {
+                    if (sheet.data.length > 0) {
+                        totalNumericColumns += sheet.headers.filter(h => !isNaN(parseFloat(sheet.data[0][h]))).length;
+                    }
+                });
+            });
+
+            if (totalNumericColumns > 0) {
+                insights.push(`💡 Se detectaron ${totalNumericColumns} columnas numéricas en total`);
+            }
+
+            insightsList.innerHTML = insights.map(insight => 
+                `<div class="insight-item">${insight}</div>`
+            ).join('');
+        }
+
+        function updateGlobalStats() {
+            const totalFiles = Object.keys(allFilesData).length;
+            const totalRecords = Object.values(allFilesData).reduce((sum, file) => 
+                sum + Object.values(file.sheets).reduce((s, sheet) => s + sheet.data.length, 0), 0
+            );
+
+            document.getElementById('totalFiles').textContent = totalFiles;
+            document.getElementById('totalRecords').textContent = totalRecords;
+        }
+
+        function toggleExportMenu() {
+            const dropdown = document.getElementById('exportDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', (e) => {
+            const exportMenu = document.querySelector('.export-menu');
+            if (exportMenu && !exportMenu.contains(e.target)) {
+                document.getElementById('exportDropdown').classList.add('hidden');
+            }
+        });
+
+        function exportData(format) {
+            if (filteredData.length === 0) {
+                alert('No hay datos para exportar');
+                return;
+            }
+
+            toggleExportMenu();
+
+            const exportData = filteredData.map(row => {
+                const cleanRow = { ...row };
+                delete cleanRow.__file;
+                delete cleanRow.__sheet;
+                return cleanRow;
+            });
+
+            if (format === 'excel') {
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Resultados');
+                XLSX.writeFile(wb, `resultados_${Date.now()}.xlsx`);
+            } else if (format === 'csv') {
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const csv = XLSX.utils.sheet_to_csv(ws);
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `resultados_${Date.now()}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } else if (format === 'json') {
+                const json = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `resultados_${Date.now()}.json`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('¿Estás seguro de que deseas eliminar todos los archivos cargados? Esta acción no se puede deshacer.')) {
+                allFilesData = {};
+                currentFileId = null;
+                currentSheet = null;
+                filteredData = [];
+                currentPage = 1;
+
+                document.getElementById('dataView').classList.add('hidden');
+                document.getElementById('uploadView').classList.remove('hidden');
+                document.getElementById('fileInput').value = '';
+            }
+        }
+
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (Object.keys(allFilesData).length > 0) performSearch();
+            }, 300);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'f') {
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                } else if (e.key === 's') {
+                    e.preventDefault();
+                    if (filteredData.length > 0) exportData('excel');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
